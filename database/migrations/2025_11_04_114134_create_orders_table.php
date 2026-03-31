@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id();
+            $table->string('customer_name'); // customer name
+            $table->string('menu_item');     // what item was ordered
+            $table->integer('quantity')->default(1);
+            $table->enum('status', ['Pending', 'Accepted', 'In Progress', 'Delivered', 'Completed', 'Aborted'])->default('Pending');
+            $table->decimal('total_price', 10, 2)->default(0);
+            $table->enum('order_type', ['Delivery', 'Pick-up'])->default('Delivery');
+            $table->string('destination')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('orders');
+    }
+};

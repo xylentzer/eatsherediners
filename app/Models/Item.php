@@ -5,8 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Menu extends Model
+class Item extends Model
 {
-    /** @use HasFactory<\Database\Factories\MenuFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'category',
+        'price',
+        'image',
+    ];
 }

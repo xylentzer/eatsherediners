@@ -34,7 +34,7 @@
       <p class="text-gray-700 text-lg leading-relaxed mb-6 animate-fadeIn delay-100">
         <span class="font-semibold text-red-600">EatsHere Diner</span> was founded in <span class="font-semibold">2022</span>
         in <span class="font-semibold">Bulihan, Silang, Cavite</span> by <span class="font-semibold">Ms. Ayen Panganiban</span>
-        and her co-founder, <span class="font-semibold">Ms. Aira Panganiban-Ortega</span>. The business began as a modest
+        and her business-partner, <span class="font-semibold">Ms. Aira Panganiban-Ortega</span>. The business began as a modest
         online dessert shop, offering an array of delectable sweets that quickly captured the attention of the local community
         through digital ordering platforms.
       </p>

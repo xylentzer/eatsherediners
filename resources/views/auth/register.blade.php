@@ -1,5 +1,22 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
+
+    <!-- SUCCESS REGISTRATION BANNER -->
+    @if (session('success'))
+        <div id="successBanner" class="mb-4 bg-green-500 text-white p-4 rounded-lg shadow-md flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🎉</span>
+                <div>
+                    <p class="font-bold text-sm">{{ session('success') }}</p>
+                    <p class="text-xs text-green-100">User account created in the database!</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('successBanner').remove()" type="button" class="text-white hover:text-green-200 font-bold text-lg">
+                &times;
+            </button>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('admin.register.submit') }}">
         @csrf
 
         <!-- Name -->

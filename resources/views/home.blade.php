@@ -20,7 +20,7 @@
         </h1>
 
         <!-- Order Now Button (starts hidden and will fade in slightly after heading) -->
-        <a id="heroBtn" href="{{ route('menu') }}"
+        <a id="heroBtn" href="{{ route('test') }}"
           class="mt-8 inline-block bg-red-600 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:bg-red-700 transition duration-300 ease-in-out opacity-0">
           Order Now
         </a>

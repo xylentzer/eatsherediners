@@ -1,91 +1,118 @@
- @include('layouts.side-dashboard')
+@include('layouts.side-dashboard')
 
-<div class="mt-10 pl-12 justify-center bg-gray-100 min-h-screen">
+<div class="p-8 justify-center bg-gray-100 min-h-screen">
 
   <!-- Header -->
-  <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard Overview</h1>
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
+      <p class="text-gray-500 text-sm">Welcome back, <span class="font-bold text-red-600">{{ Auth::user()->name }}</span>!</p>
+    </div>
+
+    <!-- Quick Logout Form -->
+    <form method="POST" action="{{ route('admin.logout') }}">
+      @csrf
+      <button class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition shadow">
+        Log Out 🚪
+      </button>
+    </form>
+  </div>
 
   <!-- Summary Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white shadow-lg rounded-xl p-5 flex items-center justify-between">
+    
+    <!-- Total Orders Card -->
+    <div class="bg-white shadow-lg rounded-2xl p-5 flex items-center justify-between border border-gray-100">
       <div>
-        <h2 class="text-gray-600 text-sm font-semibold">Total Orders</h2>
-        <p class="text-2xl font-bold text-gray-900 mt-1">200</p>
+        <h2 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Orders</h2>
+        <p class="text-3xl font-black text-gray-900 mt-1">
+          {{ isset($orders) && is_countable($orders) ? count($orders) : 0 }}
+        </p>
       </div>
-      <div class="text-red-600 text-4xl">🛒</div>
+      <div class="text-red-600 text-4xl bg-red-50 p-3 rounded-2xl">🛒</div>
     </div>
 
-    <div class="bg-white shadow-lg rounded-xl p-5 flex items-center justify-between">
+    <!-- Total Sales Card -->
+    <div class="bg-white shadow-lg rounded-2xl p-5 flex items-center justify-between border border-gray-100">
       <div>
-        <h2 class="text-gray-600 text-sm font-semibold">Total Sales</h2>
-        <p class="text-2xl font-bold text-gray-900 mt-1">₱45,230</p>
+        <h2 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Sales</h2>
+        <p class="text-3xl font-black text-gray-900 mt-1">
+          ₱{{ number_format(isset($orders) ? $orders->sum('total_amount') : 0, 2) }}
+        </p>
       </div>
-      <div class="text-green-600 text-4xl">💰</div>
+      <div class="text-green-600 text-4xl bg-green-50 p-3 rounded-2xl">💰</div>
     </div>
 
-    <div class="bg-white shadow-lg rounded-xl p-5 flex items-center justify-between">
+    <!-- Menu Items Card -->
+    <div class="bg-white shadow-lg rounded-2xl p-5 flex items-center justify-between border border-gray-100">
       <div>
-        <h2 class="text-gray-600 text-sm font-semibold">Menu Items</h2>
-        <p class="text-2xl font-bold text-gray-900 mt-1">32</p>
+        <h2 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Menu Items</h2>
+        <p class="text-3xl font-black text-gray-900 mt-1">
+          {{ \App\Models\Item::count() }}
+        </p>
       </div>
-      <div class="text-yellow-500 text-4xl">🍴</div>
+      <div class="text-yellow-500 text-4xl bg-yellow-50 p-3 rounded-2xl">🍴</div>
     </div>
 
-    <div class="bg-white shadow-lg rounded-xl p-5 flex items-center justify-between">
+    <!-- Active Customers Card -->
+    <div class="bg-white shadow-lg rounded-2xl p-5 flex items-center justify-between border border-gray-100">
       <div>
-        <h2 class="text-gray-600 text-sm font-semibold">Active Customers</h2>
-        <p class="text-2xl font-bold text-gray-900 mt-1">89</p>
+        <h2 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Active Customers</h2>
+        <p class="text-3xl font-black text-gray-900 mt-1">
+          {{ isset($customers) && is_countable($customers) ? count($customers) : 0 }}
+        </p>
       </div>
-      <div class="text-blue-600 text-4xl">👥</div>
+      <div class="text-blue-600 text-4xl bg-blue-50 p-3 rounded-2xl">👥</div>
     </div>
   </div>
 
   <!-- Chart Section -->
-  <div class="bg-white shadow-lg rounded-xl p-6 mb-8">
-    <h2 class="text-xl font-semibold text-gray-800 mb-4">Sales Overview</h2>
-    <canvas id="salesChart" height="100"></canvas>
+  <div class="bg-white shadow-lg rounded-2xl p-6 mb-8 border border-gray-100">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Sales Overview</h2>
+    <canvas id="salesChart" height="90"></canvas>
   </div>
 
   <!-- Recent Orders Table -->
-  <div class="bg-white shadow-lg rounded-xl p-6">
-    <h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Orders</h2>
+  <div class="bg-white shadow-lg rounded-2xl p-6 border border-gray-100">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Orders</h2>
     <div class="overflow-x-auto">
-      <table class="w-full border-collapse">
+      <table class="w-full border-collapse text-left text-sm text-gray-700">
         <thead>
-          <tr class="bg-gray-100 text-left text-gray-700 uppercase text-sm">
-            <th class="py-3 px-4 border-b">Order ID</th>
-            <th class="py-3 px-4 border-b">Customer</th>
-            <th class="py-3 px-4 border-b">Type</th>
-            <th class="py-3 px-4 border-b">Status</th>
-            <th class="py-3 px-4 border-b">Total</th>
-            <th class="py-3 px-4 border-b">Date</th>
+          <tr class="bg-gray-50 text-gray-500 uppercase text-xs font-bold border-b">
+            <th class="py-3 px-4">Order ID</th>
+            <th class="py-3 px-4">Customer</th>
+            <th class="py-3 px-4">Payment</th>
+            <th class="py-3 px-4">Status</th>
+            <th class="py-3 px-4">Total</th>
+            <th class="py-3 px-4">Date</th>
           </tr>
         </thead>
-        <tbody class="text-gray-700">
-          <tr class="hover:bg-gray-50">
-            <td class="py-3 px-4 border-b">#1023</td>
-            <td class="py-3 px-4 border-b">Juan Dela Cruz</td>
-            <td class="py-3 px-4 border-b">Bulk</td>
-            <td class="py-3 px-4 border-b text-yellow-600 font-semibold">Preparing</td>
-            <td class="py-3 px-4 border-b">₱1,560</td>
-            <td class="py-3 px-4 border-b">Nov 2, 2025</td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-3 px-4 border-b">#1024</td>
-            <td class="py-3 px-4 border-b">Maria Santos</td>
-            <td class="py-3 px-4 border-b">Individual</td>
-            <td class="py-3 px-4 border-b text-green-600 font-semibold">Delivered</td>
-            <td class="py-3 px-4 border-b">₱320</td>
-            <td class="py-3 px-4 border-b">Nov 2, 2025</td>
-          </tr>
-          <tr class="hover:bg-gray-50">
-            <td class="py-3 px-4 border-b">#1025</td>
-            <td class="py-3 px-4 border-b">Carlos Ramos</td>
-            <td class="py-3 px-4 border-b">Bulk</td>
-            <td class="py-3 px-4 border-b text-red-600 font-semibold">Pending</td>
-            <td class="py-3 px-4 border-b">₱2,130</td>
-            <td class="py-3 px-4 border-b">Nov 1, 2025</td>
-          </tr>
+        <tbody class="divide-y divide-gray-100">
+          @forelse(isset($orders) ? $orders->take(5) : [] as $order)
+            <tr class="hover:bg-gray-50 transition">
+              <td class="py-3 px-4 font-mono font-bold text-red-600">
+                {{ str_starts_with($order->order_number, '#') ? $order->order_number : '#' . $order->order_number }}
+              </td>
+              <td class="py-3 px-4 font-semibold text-gray-900">{{ $order->customer_name }}</td>
+              <td class="py-3 px-4 text-xs font-bold text-gray-600">{{ $order->payment_method }}</td>
+              <td class="py-3 px-4">
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold 
+                  {{ $order->status === 'Completed' ? 'bg-green-100 text-green-700' : '' }}
+                  {{ $order->status === 'Pending' ? 'bg-red-100 text-red-700' : '' }}
+                  {{ $order->status === 'In Progress' ? 'bg-yellow-100 text-yellow-700' : '' }}
+                  {{ $order->status === 'To Deliver' ? 'bg-indigo-100 text-indigo-700' : '' }}
+                  {{ $order->status === 'Aborted' ? 'bg-gray-100 text-gray-700' : '' }}">
+                  {{ $order->status }}
+                </span>
+              </td>
+              <td class="py-3 px-4 font-black text-gray-900">₱{{ number_format($order->total_amount, 2) }}</td>
+              <td class="py-3 px-4 text-xs text-gray-500">{{ $order->created_at->format('M d, Y') }}</td>
+            </tr>
+          @empty
+            <tr>
+              <td colspan="6" class="py-6 text-center text-gray-400 italic">No recent orders recorded in database.</td>
+            </tr>
+          @endforelse
         </tbody>
       </table>
     </div>
@@ -119,13 +146,3 @@
     }
   });
 </script>
-
-
-
-<div class="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-    <h1 class="text-3xl font-bold mb-4">Welcome, {{ Auth::user()->name }}!</h1>
-    <form method="POST" action="{{ route('logout') }}">
-        @csrf
-        <button class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Log Out</button>
-    </form>
-</div>

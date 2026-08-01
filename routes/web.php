@@ -1,65 +1,215 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\RegisterController;
+use Illuminate\Http\Request;
+use App\Http\Controllers\LoginController;
+use App\Http\Controllers\RegisterController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\TrackController;
+use App\Http\Controllers\ItemController;
+use App\Models\Item;
+use App\Models\Order;
 
-require __DIR__.'/auth.php';
+Route::middleware('auth')->prefix('admin')->group(function () {
 
-//Cx routing interface
+    Route::get('/revenue', function () {
+        // Fetch all orders with their items
+        $orders = Order::with('items')->get();
 
-Route::get('/', fn() => view('home'))->name('home');
-Route::get('/home', fn() => view('home'))->name('home');
-Route::get('/service', fn() => view('service'))->name('service');
-Route::get('/menu', fn() => view('menu'))->name('menu');
-Route::get('/contact', fn() => view('contact'))->name('contact');
-Route::get('/about', fn() => view('about'))->name('about');
+        // 1. Calculate Metrics
+        $totalSales = $orders->where('status', '!=', 'Aborted')->sum('total_amount');
+        $cancelledSales = $orders->where('status', 'Aborted')->sum('total_amount');
+        
+        // Estimated Cost of Raw Materials (default ~35% of total sales if no inventory model exists)
+        $totalCost = $totalSales * 0.35; 
+        $netProfit = $totalSales - $totalCost;
 
-// Allow both GET & POST for /menu
-Route::match(['get', 'post'], '/menu', fn() => view('menu'));
+        // 2. Aggregate Trending Menu Items
+        $itemStats = [];
+        foreach ($orders->where('status', '!=', 'Aborted') as $order) {
+            foreach ($order->items as $item) {
+                if (!isset($itemStats[$item->item_name])) {
+                    $itemStats[$item->item_name] = [
+                        'name'    => $item->item_name,
+                        'orders'  => 0,
+                        'revenue' => 0,
+                    ];
+                }
+                $itemStats[$item->item_name]['orders'] += $item->quantity;
+                $itemStats[$item->item_name]['revenue'] += $item->subtotal;
+            }
+        }
 
-//admin routing interface
+        // Sort items by revenue descending
+        usort($itemStats, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        $trendingMenus = array_slice($itemStats, 0, 5);
 
-Route::get('/admin/dashboard', fn() => view('admin.dashboard'))->name('admin.dashboard');
-Route::get('/admin/order', fn() => view('admin.order'))->name('admin.order');
-Route::get('/admin/revenue', fn() => view('admin.revenue'))->name('admin.revenue');
-Route::get('/admin/inventory', fn() => view('admin.inventory'))->name('admin.inventory');
-Route::get('/admin/item', fn() => view('admin.item'))->name('admin.item');
-Route::get('/admin/customer', fn() => view('admin.customer'))->name('admin.customer');
+        return view('admin.revenue', compact('totalSales', 'cancelledSales', 'totalCost', 'netProfit', 'trendingMenus'));
+    })->name('admin.revenue');
 
-// Admin Authentication Routes
-Route::get('/admin/login', fn() => view('admin.login'))->name('admin.login');
-Route::post('/admin/logout', fn() => redirect()->route('admin.login'))->name('admin.logout');
-
-
-
-Route::middleware(['auth'])->group(function () {
-    Route::get('/admin/dashboard', fn() => view('admin.dashboard'))->name('admin.dashboard');
-    Route::get('/admin/order', fn() => view('admin.order'))->name('admin.order');
-    Route::get('/admin/revenue', fn() => view('admin.revenue'))->name('admin.revenue');
-    Route::get('/admin/inventory', fn() => view('admin.inventory'))->name('admin.inventory');
-    Route::get('/admin/item', fn() => view('admin.item'))->name('admin.item');
-    Route::get('/admin/customer', fn() => view('admin.customer'))->name('admin.customer');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Customer Public Routes
+|--------------------------------------------------------------------------
+*/
 
-Route::get('/dashboard', function () {
-    return view('admin.dashboard'); // your admin dashboard view
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::view('/', 'home')->name('home');
+Route::view('/home', 'home');
+Route::view('/about', 'about')->name('about');
+Route::view('/contact', 'contact')->name('contact');
 
+// Menu Route (Fetches dynamic menu items)
+Route::get('/test', function () {
+    $items = Item::all(); 
+    return view('test', compact('items')); 
+})->name('test');
 
+/*
+|--------------------------------------------------------------------------
+| Admin Guest Routes
+|--------------------------------------------------------------------------
+*/
 
-//login/register
-Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login'])->name('login.store');
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::redirect('/admin', '/admin/login');
 
-Route::get('/register', [RegisterController::class, 'showRegisterForm'])->name('register');
-Route::post('/register', [RegisterController::class, 'register'])->name('register.store');
+Route::controller(LoginController::class)->prefix('admin')->group(function () {
+    Route::get('/login', 'showLoginForm')->name('login'); 
+    Route::post('/login', 'login')->name('admin.login.submit');
+});
 
-// ✅ PROTECTED ROUTE (Dashboard)
-Route::middleware('auth')->group(function () {
+Route::controller(RegisterController::class)->prefix('admin')->group(function () {
+    Route::get('/register', 'showRegisterForm')->name('admin.register');
+    Route::post('/register', 'register')->name('admin.register.submit');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Admin Protected Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->prefix('admin')->group(function () {
+
+    Route::post('/logout', [LoginController::class, 'logout'])->name('admin.logout');
+
+    // Dashboard Route with dynamic data
     Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+        $orders = Order::with('items')->latest()->get();
+
+        $customers = $orders->groupBy('customer_name')->map(function ($group) {
+            $lastOrder = $group->first();
+            $itemCounts = [];
+            foreach ($group as $order) {
+                foreach ($order->items as $item) {
+                    $itemCounts[$item->item_name] = ($itemCounts[$item->item_name] ?? 0) + $item->quantity;
+                }
+            }
+            arsort($itemCounts);
+            $topItems = array_slice(array_keys($itemCounts), 0, 3);
+
+            return (object) [
+                'name'            => $lastOrder->customer_name,
+                'contact'         => $lastOrder->customer_contact,
+                'address'         => $lastOrder->delivery_address,
+                'total_orders'    => $group->count(),
+                'last_order_date' => $lastOrder->created_at,
+                'frequent_items'  => !empty($topItems) ? implode(', ', $topItems) : 'N/A',
+            ];
+        });
+
+        return view('admin.dashboard', compact('orders', 'customers'));
+    })->name('admin.dashboard');
+
+    // Customer Records & Insights Route
+    Route::get('/customer', function () {
+        $orders = Order::with('items')->latest()->get();
+
+        $customers = $orders->groupBy('customer_name')->map(function ($group) {
+            $lastOrder = $group->first();
+            $itemCounts = [];
+            foreach ($group as $order) {
+                foreach ($order->items as $item) {
+                    $itemCounts[$item->item_name] = ($itemCounts[$item->item_name] ?? 0) + $item->quantity;
+                }
+            }
+            arsort($itemCounts);
+            $topItems = array_slice(array_keys($itemCounts), 0, 3);
+
+            return (object) [
+                'name'            => $lastOrder->customer_name,
+                'contact'         => $lastOrder->customer_contact,
+                'address'         => $lastOrder->delivery_address,
+                'total_orders'    => $group->count(),
+                'last_order_date' => $lastOrder->created_at,
+                'frequent_items'  => !empty($topItems) ? implode(', ', $topItems) : 'N/A',
+            ];
+        });
+
+        return view('admin.customer', compact('customers'));
+    })->name('admin.customer');
+
+    // Dynamic Orders Route
+    Route::get('/order', function () {
+        $orders = Order::with('items')->latest()->get();
+        return view('admin.order', compact('orders'));
+    })->name('admin.order');
+
+    // Order Status Update Route
+    Route::patch('/order/{id}/status', function (Request $request, $id) {
+        $request->validate([
+            'status' => 'required|string'
+        ]);
+
+        $order = Order::findOrFail($id);
+        $order->status = $request->status;
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status updated successfully!',
+            'status'  => $order->status
+        ]);
+    })->name('admin.order.updateStatus');
+
+    Route::view('/inventory', 'admin.inventory')->name('admin.inventory');
+    Route::view('/revenue', 'admin.revenue')->name('admin.revenue');
+
+    // Item Management Routes
+    Route::get('/item', [ItemController::class, 'index'])->name('admin.item');
+    Route::post('/item', [ItemController::class, 'store'])->name('admin.item.store');
+    Route::put('/item/{id}', [ItemController::class, 'update'])->name('admin.item.update');
+    Route::delete('/item/{id}', [ItemController::class, 'destroy'])->name('admin.item.destroy');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cart Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::controller(CartController::class)->group(function () {
+    Route::get('/cart', 'index')->name('cart');
+    Route::post('/cart/add', 'addToCart')->name('cart.add');
+    Route::patch('/cart/{id}/increase', 'increase')->name('cart.increase');
+    Route::patch('/cart/{id}/decrease', 'decrease')->name('cart.decrease');
+    Route::delete('/cart/{id}', 'remove')->name('cart.remove');
+    Route::post('/checkout/process', 'processCheckout')->name('checkout.process');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Track Order Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::controller(TrackController::class)->prefix('track')->group(function () {
+    Route::get('/', 'index')->name('track');
+    Route::post('/search', 'search')->name('track.search');
+    
+    // Redirect direct GET access on /track/search back to /track
+    Route::get('/search', function () {
+        return redirect()->route('track');
+    });
 });

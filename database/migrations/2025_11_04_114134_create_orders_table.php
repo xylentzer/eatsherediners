@@ -6,29 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('customer_name'); // customer name
-            $table->string('menu_item');     // what item was ordered
-            $table->integer('quantity')->default(1);
-            $table->enum('status', ['Pending', 'Accepted', 'In Progress', 'Delivered', 'Completed', 'Aborted'])->default('Pending');
-            $table->decimal('total_price', 10, 2)->default(0);
-            $table->enum('order_type', ['Delivery', 'Pick-up'])->default('Delivery');
-            $table->string('destination')->nullable();
+            $table->string('order_number')->unique();
+            $table->string('customer_name');
+            $table->string('customer_contact');
+            $table->string('delivery_address');
+            $table->string('preferred_time')->nullable();
+            $table->text('special_notes')->nullable();
+            $table->string('payment_method');
+            $table->string('gcash_ref_no')->nullable();
+            $table->decimal('total_amount', 10, 2);
+            $table->string('status')->default('Preparing Meal');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('orders');
     }
-};
+};  
